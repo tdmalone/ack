@@ -1,3 +1,10 @@
 {
-
+  "body": "testing=definitely&isJson=false",
+  "headers": {
+    "content-type": "application/x-www-form-urlencoded"
+  },
+  "queryStringParameters": {
+    "testing": "maybe",
+    "qs": "yes"
+  }
 }

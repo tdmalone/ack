@@ -1,3 +1,10 @@
 {
-
+  "body": "{\"testing\":\"definitely\",\"isJson\":true}",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "queryStringParameters": {
+    "testing": "maybe",
+    "qs": "yes"
+  }
 }
