@@ -1,0 +1,113 @@
+language: node_js
+services: docker
+node_js: 6.10
+
+env:
+  global:
+
+    - AWS_ACCESS_KEY_ID=AKIAJQO2WK4OV72CGD3Q
+    - AWS_DEFAULT_REGION=ap-southeast-2
+
+    - LAMBDA_NAME=ack
+    - LAMBDA_DESCRIPTION="A simple Lambda function that normalizes and sends an incoming payload to an SNS topic, while acknowledging back to the sender ASAP."
+    - LAMBDA_TIMEOUT=3
+    - LAMBDA_ROLE=arn:aws:iam::873114526714:role/genericLambdaRole
+    - LAMBDA_ALIAS=prod
+
+    - LAMBDA_RUNTIME=nodejs6.10
+    - LAMBDA_MODULE=index
+    - LAMBDA_HANDLER=handler
+    - NPM_EMAIL=tdmalone@gmail.com
+
+    - SNS_TOPIC=arn:aws:sns:ap-southeast-2:873114526714:ack-testing
+
+    # AWS_SECRET_ACCESS_KEY
+    - secure: nut2x1+DN5I83ALCs3ucwkMN9X6POVaqoUy0uWVqKGmI3+GHRm5xmUSVD3ZIovkzvae6Q4njT/32fe6hsJiGyXD2KuKa9qn9tPPJ+lf0Gy7HrduIBBdtImnLTXYZuGxofmT3ViDTQeDhbOj5ikHm76AMGDHZ9JLjfmOKcohc557Aef9WbocexJNvRz4Z5Ws8Nh/yZnxIsoZ/qoZTw6di9D5R9auJ8eXsJNUBA8ys76fP6i+m3wQ15dNwi3DGUQKEvjvfiSkTN7nqzAfxE6AYQANJUB6H0BsTnIzZhwatAeMl/AZ0Gss1N1BF4gjVmZOO03Xy8dD0n5NI9EEcTIaehYdBnPbIkPV84JT7CgeKmpm1yCMKWlVQRmcu+yQdWORI7RmIv8hfBOuG0OeW6Up4w/nJG/u/KOUPxsr0qvdUae2R5MurlzEeyXPUhzSNqRo1RWL8avdVAjFwFSpYPr7159ch9+GOUkK2H6DekQ2Pn0GLH8rjs2l1ElN1VdUUdTNbiNPHTnxMFENPyMjc8TRYOjLz5zNK9wGAy0MO3yMxXq5MNgkDn5/fSmagySJ89ZFcKL4NHkGcIjipmkEFsdGZzefMxRm6q60YKZRr5Bv+Oxgw0zlEROti2Ou06wy6H5wwV2sjYmvc5AEjSWAu+UWpd7BzlBU3fufP6s9dds+RZ48=
+
+    # NPM_TOKEN
+    - secure: Zj7+NBAWjVO2yGW8cmmCxGitfbed4kV+opy3Ff21lHgo4RGrtnsP/Ebxv1LBArkkZCaDq20IB4khpUpbUfCbqOjFVMZPGiRNiWZET1xdP/ZPfA9KhV4iIJmQDNqjjjSljcDv6Caf0m/VGBJ87gsge9MMJSAAr6CbMumAjygfZR7JivsG+e8m7zLOIPrnPY8y8z6AKtklUX1e6+C9lfT38KtraXiorcj3ZLEKH2c37l3CMy/c7OEuN4kdpCQk8RwOKlEj+IcQ6AMVQUrW39J7PpqTSqaUtDCoEi7vH02q4T6BnJLxAHIeLUtL4519FVO0lZm1+RiW8atMCMkY4+hvI2egq2whbaIqYweN1M3bdxGQ84cuhGSErFxXpQmucBhp2xT0a+ZOMVX+1nosJ18l90/jf2qQ1fjD7+MWInu5iM4AHTpqiOqEFWSQvs+eYZ5gufl7NQOi5DmqFib7ad3Da239817Qgk0sLCkMGdw97JIHKPyqry94jhcmKMdjJNdsaTvCmdQI90jJpjOh+5GwVzQozwKrqIl/T4EeKW88VXTGWsJP2XeuHg4qVRsZgKRsX/1v5paHCFaCghXY3i0QkqtX8R+oAcBNG1kozKpl4Zo0cMwMml4ur6U8szWgeIMFOzxG5+jZzFMWvAvTXdnpZiBbZDSHx9HsRtZMFYne+tU=
+
+cache:
+  yarn: true
+  directories:
+    - node_modules
+
+install: yarn
+
+script:
+  - yarn lint
+  - yarn test
+
+before_deploy:
+  - yarn remove aws-sdk
+  - rm -rf coverage node_modules tests .*rc.js
+  - yarn --prod
+
+deploy:
+
+  # Deploy to $LATEST on dev branch. (i.e. don't publish a new version).
+
+  - on:
+      branch: dev
+    publish: false
+
+    provider: lambda
+    function_name: $LAMBDA_NAME
+    region: $AWS_DEFAULT_REGION
+    role: $LAMBDA_ROLE
+    description: $LAMBDA_DESCRIPTION
+    runtime: $LAMBDA_RUNTIME
+    timeout: $LAMBDA_TIMEOUT
+    module_name: $LAMBDA_MODULE
+    handler_name: $LAMBDA_HANDLER
+    access_key_id: $AWS_ACCESS_KEY_ID
+    secret_access_key: $AWS_SECRET_ACCESS_KEY
+    skip_cleanup: true
+
+  # Deploy and publish a new version on master branch.
+
+  - on:
+      branch: master
+    publish: true
+
+    provider: lambda
+    function_name: $LAMBDA_NAME
+    region: $AWS_DEFAULT_REGION
+    role: $LAMBDA_ROLE
+    description: $LAMBDA_DESCRIPTION
+    runtime: $LAMBDA_RUNTIME
+    timeout: $LAMBDA_TIMEOUT
+    module_name: $LAMBDA_MODULE
+    handler_name: $LAMBDA_HANDLER
+    access_key_id: $AWS_ACCESS_KEY_ID
+    secret_access_key: $AWS_SECRET_ACCESS_KEY
+    skip_cleanup: true
+
+  # Deploy to npm on master with a new tag.
+
+  - on:
+      branch: master
+      tags: true
+
+    provider: npm
+    email: $NPM_EMAIL
+    api_key: $NPM_TOKEN
+    skip_cleanup: true
+
+after_deploy:
+
+  # Set a Lambda alias to the most recently deployed version.
+  - if [ "master" = "${TRAVIS_BRANCH}" ]; then
+      pip install awscli --upgrade --user;
+      export MOST_RECENT=$(aws lambda list-versions-by-function --function "${LAMBDA_NAME}" --max-items 10000 | node -e "let stdin=''; process.stdin.on('data',(chunk)=>{stdin+=chunk}).on('end',()=>{console.log(JSON.parse(stdin).Versions.pop().Version)})");
+      aws lambda update-alias --function-name "${LAMBDA_NAME}" --name "${LAMBDA_ALIAS}" --function-version "${MOST_RECENT}";
+    fi;
+
+notifications:
+  email: false
+  webhooks:
+    urls: https://api.tm.id.au/v2/travis/jobStatus
+  slack:
+    on_start: always
+    rooms:
+      - secure: FaYR9P/f/6F1TIPj93attZ8kLHvYewriTgDnItD9sHtyV60hUwnghj3CtNt2RjUACn8sEAqLuZbsnGPIj5Y0joR2FVfuOnwNFo1gzTToO8jqS1h4qkajW6cYVfMQlc98xmG4HVVbVoslKrFsKumrCs2MV+EILGT18Ydbbxe8nijoOsRK62cpx4wVrE+BsB7ALsW8nfdf4OHJRYyRIe/WqmSUzybQHAikdSPFe3MVmUiU4PwQLhwlf+LEOcJiLnOuN+FQk+eSU39vt8zEgRjIVLmu4AEE8IqBdBAfOXeKwW7Q9ewYoOG0SdoBbhltdUMuslV7PJzG2pgfRTlRepb4a7Z7lLAhN0XG+YP3Y9K19iqb6lt6sMHdsrlFKpnIKhIyFISzzJcGPm1nHHPynT/azW7bNujxf7vDO+y7MdjlZV3V+J54K08n0mulqZqNGX/OR7i85FfWhagNgnUHZ7HGPKiBEC3LHVDqIvMuiwdXcBtI8/+RN62yfBqW6g3MMHiWNqzwFOqSMiAzFa0PlcHqzU2ixYSWm8VfoNHVS/1EHBKvCf7erDI2H0/cCb+DgBvJx3cqIPsC9Qx5PoksEEp7Ob6YTqBn69dCyCUcwiXMwBheALW+EBJ3NDKvfnDWSAdn06Gi7XMaWlr2eEoFWXYAPsQLtz486PAWx1RW+Rdaiio=

@@ -1,0 +1,40 @@
+{
+  "name": "@tdmalone/ack",
+  "version": "0.0.0",
+  "description": "A simple AWS Lambda function that normalizes and sends an incoming payload to an SNS topic, while acknowledging back to the sender ASAP",
+  "homepage": "https://github.com/tdmalone/ack#readme",
+  "repository": "git+https://github.com/tdmalone/ack.git",
+  "main": "index.js",
+  "author": "Tim Malone <tdmalone@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "lint": "DEBUG=eslint:cli-engine eslint --color --ignore-pattern '/coverage/' --ignore-pattern '/node_modules/' --ignore-pattern '!.eslintrc.js' \"**/*.js\"",
+    "fix": "yarn lint --fix",
+    "test": "yarn unit-tests && yarn docker-tests",
+    "unit-tests": "jest --verbose --coverage",
+    "docker-tests": "yarn _execute \"$( cat tests/fixtures/GET.json )\" && yarn _execute \"$( cat tests/fixtures/POST-form.json )\" && yarn _execute \"$( cat tests/fixtures/POST-json.json )\"",
+    "execute": "yarn _execute {}",
+    "_execute": "docker run --rm -e CI -e SNS_TOPIC -e RESPONSE_TEXT -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION -v \"${PWD}\":/var/task lambci/lambda:nodejs6.10 index.handler"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "sns",
+    "api-gateway"
+  ],
+  "jest": {
+    "testMatch": [
+      "**/tests/**/*.js"
+    ]
+  },
+  "dependencies": {
+    "@tdmalone/lambda-proxy-response": "^0.0.2",
+    "aws-sdk": "^2.170.0"
+  },
+  "devDependencies": {
+    "eslint": "^4.8.0",
+    "eslint-config-tdmalone": "^0.0.1",
+    "jest": "^21.2.1",
+    "jest-tobetype": "^1.1.0"
+  }
+}
