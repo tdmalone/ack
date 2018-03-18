@@ -1,13 +1,17 @@
 /**
  * A simple Lambda function that normalizes and sends an incoming payload to an SNS topic, while
- * acknowledging back to the sender ASAP.
+ * acknowledging back to the sender ASAP. Designed to be used as a Lambda proxy integration on an
+ * API Gateway endpoint.
  *
  * @author Tim Malone <tdmalone@gmail.com>
  */
 
 'use strict';
 
-const aws = require( 'aws-sdk' );
+const aws = require( 'aws-sdk' ),
+      parser = require( '@tdmalone/simple-body-parser' ),
+      response = require( '@tdmalone/lambda-proxy-response' );
+
 const sns = new aws.SNS();
 
 /* eslint-disable no-process-env */
@@ -19,10 +23,41 @@ const config = {
 
 exports.handler = ( event, context, callback ) => {
 
-  // TODO: Determine if we have GET params, JSON POST data, or x-www-form-urlencoded POST data.
-  // TODO: Normalize it into JSON.
-  // TODO: Send it to SNS.
+  // Get and parse the body.
+  const body = parser( event.body || '{}', event.headers['content-type']);
 
-  callback();
+  // Bring in query string params, allowing body params to override.
+  const data = Object.assign( event.queryStringParameters, body );
+
+  // Send to SNS.
+  const snsMessage = {
+    Message:  JSON.stringify( data ),
+    TopicArn: config.snsTopic
+  };
+
+  sendToSns( snsMessage )
+    .then( () => {
+      response( null, config.responseText, callback );
+    })
+    .catch( ( error ) => {
+      response( error, null, callback );
+    });
 
 }; // Exports.handler.
+
+/**
+ * A simple wrapper around AWS SDK's sns.publish to make it return a Promise.
+ *
+ * @param {object} params A collection of parameters as accepted by AWS.sns().
+ * @return {Promise} A promise to send the given message to SNS.
+ */
+function sendToSns( params ) {
+  return new Promise( ( resolve, reject ) => {
+    sns.publish( params, ( error, result ) => {
+
+      if ( error ) return reject( error );
+      resolve( result );
+
+    });
+  });
+}
